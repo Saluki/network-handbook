@@ -1,0 +1,288 @@
+\documentclass[a4paper, 11pt]{article}
+
+% ---------- Packages ----------
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[francais]{babel}
+\usepackage{color}
+\usepackage{tcolorbox}
+\usepackage{listings}
+\usepackage{changepage}
+\usepackage{geometry}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{array}
+
+% ---------- Congigurations ----------
+
+\geometry{
+    a4paper,
+    left=23mm,
+    right=23mm,
+    top=20mm,
+    bottom=20mm,
+}
+
+\newcommand{\commande}[1] {
+    \begin{quote}
+    \tt\raggedright #1
+    \end{quote}
+}
+
+% ---------- Metadata ----------
+
+\title{Fiches techniques réseau}
+\author{
+	Corentin Badot-Bertrand\\
+	c.badot-bertrand@univ-lille1.fr
+}
+\date{Version du \today}
+
+% ---------- Content ----------
+
+\begin{document}
+
+\maketitle
+
+Ce document est à la fois une synthèse des différentes manipulations vues en cours de réseaux pratique, une référence pour certaines notions essentielles concernant les réseaux TCP/IP et un guide pour certaines configuration avancées.
+
+\tableofcontents
+
+\newpage
+
+\section{Configuration d'un équipement}
+
+Pour configurer un nouvel équipement réseau : 
+
+\begin{itemize}
+\item Prendre cable série spécifique au constructeur
+\item Brancher prise série DB9 \textit{workstation} au \textit{patch panel}
+\item Brancher RJ45 depuis \textit{patch panel} vers \textit{switch}
+\\
+\end{itemize}
+
+Après configuration matériel, lancer dans un terminal
+
+\commande{\$ minicom}
+
+Vérifier différents paramètres (vitesse, parité, etc.) et valider avec \textit{enter} pour se connecter.
+
+\section{Bases essentielles IOS}
+
+Modes de configuration IOS :
+
+\begin{itemize}
+\item Mode \textit{user} pour consulter configuration
+\item Mode \textit{privileged} pour administration
+\\
+\end{itemize}
+
+Changer de mode de configuration dans le CLI
+
+\commande{> enable}
+\commande{\# disable}
+
+Configuration globale équipement
+
+\commande{\# configure terminal}
+
+Configuration interface réseau spécifique
+
+\commande{\# (config) interface ethernet 0/x}
+
+Obtenir informations sur le \textit{switch} et sa configuration réseau
+
+\commande{\# show running-config}
+\commande{\# show startup-config}
+\commande{\# show version}
+\commande{\# show line}
+\commande{\# show interface}
+
+Complétion commande et affichage de l'aide IOS
+
+\commande{\# comman?}
+\commande{\# commande ?}
+
+\section{Mise en place réseau VLAN}
+
+Rappels sur \textit{Virtual Local Area Network} : 
+
+\begin{itemize}
+\item Réseau virtuel au niveau de la couche OSI 2 (\textit{datalink})
+\item Pour assigner IP à équipements travaillant dans la couche OSI 2 (\textit{switch})
+\\
+\end{itemize}
+
+Prendre configuration réseau ci-dessous comme exemple : 
+\\
+
+\begin{tabular}{|l|l|l|}
+  \hline
+  Composant & Adresse IP & Masque réseau \\
+  \hline
+  Réseau VLAN & 192.168.0.0 & 255.255.255.0 \\
+  Workstation & 192.168.0.5 & x \\
+  Switch & 192.168.0.4 & x \\
+  \hline
+\end{tabular}
+
+\bigbreak
+Changer adresse carte réseau \textit{workstation}
+
+\commande{\$ ifconfig eth0 192.168.0.5 255.255.255.0}
+
+Avec liaison série, accéder à configuration terminal
+
+\commande{\# configure terminal}
+
+Et définir les détails de l'interface \textit{vlan1}
+
+\commande{(config) interface vlan1}
+\commande{(config-if) ip address 192.168.0.4 255.255.255.0}
+
+\section{Configuration protocole telnet}
+
+Rappels à propos du protocole telnet : 
+
+\begin{itemize}
+\item Protocole pour communication avec serveur distant
+\item Texte circule en clair et non-encrypté
+\item Connection sur le port 23
+\\
+\end{itemize}
+
+Après avoir configuré VLAN, accéder à configuration
+
+\commande{\# configure terminal}
+
+Définir informations d'identification pour liaison série virtuelle
+
+\commande{(config) line vty 0}
+\commande{(config-line) password XXX}
+\commande{(config-line) login}
+
+Configurer privilège pour pouvoir accéder au mode administrateur (interdit par défaut)
+
+\commande{(config) line vty 0}
+\commande{(config-line) privilege level 15}
+
+\section{Configuration protocole SSH}
+
+Rappels à propos du protocole SSH (\textit{Secure Shell}) : 
+
+\begin{itemize}
+\item Protocole pour communication avec serveur distant
+\item Toute communication encryptée
+\item Connection sur le port 22
+\\
+\end{itemize}
+
+Après avoir configuré VLAN, accéder à configuration
+
+\commande{\# configure terminal}
+
+Configuration identification sur \textit{switch}
+
+\commande{(config) aaa new-model}
+\commande{(config) username john password 0 bonjour}
+
+Mise en place chiffrement et protocole SSH
+
+\commande{(config) crypto key generate rsa}
+\commande{(config) ip ssh time-out 60}
+\commande{(config) ip ssh authentication-retries 2}
+
+Tester SSH depuis \textit{workstation} avec utilisateur "john"
+
+\commande{\$ ssh john@192.168.0.4} 
+
+Désactiver protocole telnet pour accéder au \textit{switch}
+
+\commande{(config) line vty 0}
+\commande{(config-line) transport input ssh}
+
+\section{Backup de la configuration IOS}
+
+En faisant tourner serveur TFTP sur \textit{workstation}, utiliser commande
+
+\commande{\# copy running-config tftp:}
+
+Remplir informations serveur TFTP pour obtenir copie configuration actuelle.
+
+\section{Processus de commutation}
+
+Quand machine \textit{ping} autre machine on observe que table de commutation est bien dynamiquement alimentée.
+\\
+
+Modifier le cache ARP avec commande dans terminal
+
+\commande{\$ arp 192.168.10.99 12:34:56:78:9A:BC}
+
+Modifier délai "vidange" table commutation sur \textit{switch}
+
+\commande{\# configure terminal}
+\commande{\# mac-address-table aging-time 10}
+
+Pour afficher le nouveau délai de la table
+
+\commande{# show mac-address-table aging-time}
+
+Conséquences du changement de temps :
+
+\begin{itemize}
+\item Si on met un temps trop court on envoie des paquets à tout le monde  y compris aux machines à qui le paquet n’est pas destiné le paquet (risque de surcharge du réseau)
+\item Si on met un temps trop long on risque d’avoir encore en mémoire trop de machines  (risque de surcharge de la mémoire du switch)
+\\
+\end{itemize}
+
+Changer adresse MAC pour effectuer tests depuis \textit{workstation} 
+    
+\commande{\$ sudo ifconfig enp2s0 hw eth 12:34:56:78:9A:BC}
+
+\section{Sécurisation des ports}
+
+Pour éviter saturation de la table de commutation (plus de nouvelles adresses, mémoire saturée, etc.)
+\\
+
+Sécuriser port 1 du \textit{switch} avec la commande
+
+\commande{(config) interface Fastetethernet 0/}
+\commande{(config if) port security max 2}
+
+Quelques observations après manipulation :
+
+\begin{itemize}
+\item Adresse A connectée est maintenant notée en \textit{secure} dans table de commutation.
+\item Si adresse A est sur autre port, plus possible de communiquer avec.
+\item Si plus de N connections sur port sécurisé, erreur de violation de sécurité est lancée.
+\end{itemize}
+
+\section{Boucles de commutation}
+
+\section{Bridge Linux}
+
+Pour transformer \textit{workstation} en \textit{bridge} Linux
+
+\commande{\$ sudo brctl addbr nom-du-bridge}
+
+Si nécessaire, assigner adresse IP au \textit{bridge}
+
+\commande{\$ ifconfig nom-du-bridge 192.168.0.7}
+
+\section{Protocole spanning-tree}
+
+Désactiver le protocole \textit{spanning-tree} avec 
+
+\commande{(config) no spanning-tree vlan 1}
+
+\section{Filtres Wireshark}
+
+Après avoir capturé réseau avec Wireshark ou en ouvrant fichier de capture, utiliser filtres pour trier paquets efficacement. Les exemples ci-dessous ont été utilisés pendant les cours réseau.
+\\
+
+Filtrer tous les paquets telnet provenant de 192.168.0.5
+
+\commande{telnet \&\& ip.src == 192.168.0.5}
+
+\end{document}
